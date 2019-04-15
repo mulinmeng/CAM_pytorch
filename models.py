@@ -12,15 +12,15 @@ class VGG(nn.Module):
     def __init__(self, features, num_classes=20, init_weights=True):
         super(VGG, self).__init__()
         self.features = features
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.classifier = nn.Linear(1024, num_classes)
-        self.conv1 = nn.Conv2d(512, 1024, kernel_size=3, padding=1)
+        self.avgpool = nn.nn.AvgPool2d(41, stride=1)
+        self.classifier = nn.Linear(1024, num_classes, bias=True)
+        self.fc = make_CAM_layers()
         if init_weights:
             self._initialize_weights()
 
     def forward(self, x):
         x = self.features(x)
-        x = self.conv1(x)
+        x = self.fc(x)
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
@@ -36,7 +36,7 @@ class VGG(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.normal_(m.weight, 0, 0.005)
                 nn.init.constant_(m.bias, 0)
 
 
@@ -54,6 +54,19 @@ def make_layers(cfg, batch_norm=False):
                 layers += [conv2d, nn.ReLU(inplace=True)]
             in_channels = v
     return nn.Sequential(*layers)
+
+def make_CAM_layers(cfg, batch_norm=False):
+    in_channels = 512
+    return nn.Sequential(
+        nn.Conv2d(in_channels, 1024, kernel_size=3, padding=1),
+        nn.BatchNorm2d(),
+        nn.ReLU(inplace=True),
+        nn.Dropout(0.5),
+        nn.Conv2d(1024, 1024, kernel_size=3, padding=1),
+        nn.BatchNorm2d(),
+        nn.ReLU(inplace=True),
+        nn.Dropout(0.5),
+    )
 
 
 cfg = {

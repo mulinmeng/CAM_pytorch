@@ -8,9 +8,12 @@ import argparse
 import os
 import random
 from torch.autograd import Variable
+from PIL import Image
+
 
 from dataset import PASCALVOC
 import utils
+from visualize import *
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -98,6 +101,7 @@ def train(epoch):
         load_data(labels, lbl)
         outputs = net(images)
         loss = criterion(outputs, labels)
+        logger.log(str(batch_idx)+" : "+str(loss))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -116,6 +120,21 @@ for epoch in range(args.epoch):
     # if (epoch+1) % opt.save_interval == 0:
     torch.save(net.state_dict(), os.path.join(param_dir, 'epoch_{}.pth'.format(epoch)))
     torch.save(net.state_dict(), os.path.join(param_dir, 'resume.pth'))
+
+
+features_blobs = []
+
+
+def hook_feature(module, input, output):
+    features_blobs.append(output.data.cpu().numpy())
+
+
+final_conv = "conv1"
+net._modules.get(final_conv).register_forward_hook(hook_feature)
+
+root = 'sample.jpg'
+img = Image.open(root)
+returnCAM(net, features_blobs, img, classes, root)
 
 
 
